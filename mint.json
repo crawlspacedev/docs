@@ -1,91 +1,105 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "Crawlspace",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
+    "primary": "#238be6",
+    "light": "#1c7ed6",
+    "dark": "#238be6",
     "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+      "from": "#238be6",
+      "to": "#1c7ed6"
     }
+  },
+  "theme": "quill",
+  "layout": "solidSidenav",
+  "background": {
+    "style": "grid"
+  },
+  "sidebar": {
+    "items": "card"
+  },
+  "search": {
+    "location": "top"
+  },
+  "rounded": "default",
+  "codeBlock": {
+    "mode": "auto"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
   },
   "topbarLinks": [
     {
-      "name": "Support",
-      "url": "mailto:hi@mintlify.com"
+      "name": "Sign up",
+      "url": "https://crawlspace.dev"
     }
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
+    "url": "https://crawlspace.dev/app"
+  },
+  "anchors": [
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://crawlspace.dev/community"
+    },
+    {
+      "name": "Support",
+      "icon": "envelope",
+      "url": "mailto:help@crawlspace.dev"
+    }
+  ],
+  "primaryTab": {
+    "name": "Documentation"
   },
   "tabs": [
     {
-      "name": "API Reference",
-      "url": "api-reference"
-    }
-  ],
-  "anchors": [
-    {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://mintlify.com/docs"
+      "name": "CLI reference",
+      "url": "command-line"
     },
     {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://mintlify.com/community"
-    },
-    {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://mintlify.com/blog"
+      "name": "Changelog",
+      "url": "changelog"
     }
   ],
+
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Welcome",
+      "pages": ["welcome/introduction", "welcome/quickstart"]
+    },
+    {
+      "group": "Web Crawlers",
       "pages": [
-        "introduction",
-        "quickstart",
-        "development"
+        "crawler/overview",
+        {
+          "group": "Development",
+          "icon": "desktop",
+          "pages": [
+            "crawler/development/schema",
+            "crawler/development/seed",
+            "crawler/development/handler"
+          ]
+        },
+        "crawler/configuration",
+        "crawler/deployment"
       ]
     },
     {
-      "group": "Essentials",
-      "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
-      ]
-    },
-    {
-      "group": "API Documentation",
-      "pages": [
-        "api-reference/introduction"
-      ]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
-      ]
+      "group": "Changelog",
+      "pages": ["changelog/product-updates"]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "x": "https://x.com/crawlspacedev",
+    "github": "https://github.com/crawlspacedev",
+    "linkedin": "https://linkedin.com/company/crawlspacedev"
   }
 }
