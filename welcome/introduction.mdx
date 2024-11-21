@@ -1,74 +1,90 @@
 ---
 title: Introduction
-description: Welcome to Crawlspace
+description: Welcome to our serverless web crawling platform
 icon: house
 ---
 
-{/*
-<img
-  className="block dark:hidden"
-  src="/images/hero-light.svg"
-  alt="Hero Light"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/hero-dark.svg"
-  alt="Hero Dark"
-/>
-*/}
+With Crawlspace, you can:
 
-## Setting up
+- Affordably crawl tens of millions of web pages per month
+- Respectfully adhere to rate-limiting and robots.txt
+- Intelligently scrape with query selectors and/or AI inference
+- Conveniently save data into an SQLite database and/or S3-compat bucket
+- Efficiently query scraped data over a REST API
 
-The first step to world-class documentation is setting up your editing environments.
+## Get up to speed
+
+Set up your local environment, and learn about out-of-the-box features.
 
 <CardGroup cols={2}>
   <Card
-    title="Edit Your Docs"
-    icon="pen-to-square"
-    href="https://mintlify.com/docs/quickstart"
+    title="Quickstart"
+    icon="stopwatch"
+    href="/welcome/quickstart"
   >
-    Get your docs set up locally for easy development
+    Deploy your first web crawler to Crawlspace in under 5 minutes
   </Card>
   <Card
-    title="Preview Changes"
-    icon="image"
-    href="https://mintlify.com/docs/development"
+    title="Features"
+    icon="wand-magic-sparkles"
+    href="/welcome/features"
   >
-    Preview your changes before you push to make sure they're perfect
+  Learn about platform features and web crawling philosophies
   </Card>
 </CardGroup>
 
-## Make it yours
+## Build a web crawler
 
-Update your docs to your brand and add valuable content for the best user conversion.
+You can deploy an unlimited amount of web crawlers to Crawlspace.
 
 <CardGroup cols={2}>
   <Card
-    title="Customize Style"
-    icon="palette"
-    href="https://mintlify.com/docs/settings/global"
+    title="Define your schema"
+    icon="database"
+    href="/build/development/schema"
   >
-    Customize your docs to your company's colors and brands
+    The database schema holds the structure of the data you scrape
   </Card>
   <Card
-    title="Reference APIs"
+    title="Create your seed function"
+    icon="seedling"
+    href="/build/development/seed"
+  >
+    The seed function instructs the crawler where to start crawling
+  </Card>
+  <Card
+    title="Customize your handler"
     icon="code"
-    href="https://mintlify.com/docs/api-playground/openapi"
+    href="/build/development/handler"
   >
-    Automatically generate endpoints from an OpenAPI spec
+    The handler runs after every successful response
   </Card>
   <Card
-    title="Add Components"
-    icon="screwdriver-wrench"
-    href="https://mintlify.com/docs/components/accordion"
+    title="Configure your options"
+    icon="gear"
+    href="/build/configuration"
   >
-    Build interactive features and designs to guide your users
+    Tweak your crawler with configuration settings
+  </Card>
+</CardGroup>
+
+## Understand the platform
+
+Push your crawlers to the limit while monitoring your usage.
+
+<CardGroup cols={2}>
+  <Card
+    title="Billing"
+    icon="file-invoice-dollar"
+    href="/platform/billing"
+  >
+    Pay-as-you-go with metered billing
   </Card>
   <Card
-    title="Get Inspiration"
-    icon="stars"
-    href="https://mintlify.com/customers"
+    title="Limitations"
+    icon="traffic-light"
+    href="/platform/limitations"
   >
-    Check out our showcase of our favorite documentation
+    Take it to the limit
   </Card>
 </CardGroup>

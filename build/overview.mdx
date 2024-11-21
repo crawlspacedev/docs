@@ -1,0 +1,160 @@
+---
+title: Overview
+description: Anatomy of a web crawler
+icon: globe
+---
+
+## Fundamentals
+
+As a developer, you only need to focus on three things when building a web crawler on Crawlspace:
+
+- A *schema*
+- A *seed function*, and
+- A *handler*
+
+These three pieces are exported as a JavaScript object and merged with platform code
+before getting deployed as a serverless function.
+
+### Schema
+
+The schema of a crawler on Crawlspace is defined as a [Zod](https://www.npmjs.com/package/zod) object.
+It's responsible for setting column types and constraints for your crawler's sqlite table.
+Return a Zod object in the `schema()` function to define your schema. Here's an example:
+
+```typescript
+schema({ z }) {
+  return z.object({
+    job_title: z.string(),
+    is_remote: z.boolean(),
+    salary_range: z.array(z.number()),
+    url: z.string().describe('unique'),
+  });
+}
+```
+
+For more detail, read the [Schema](/build/development/schema) chapter.
+
+### Seed function
+
+The seed function instructs the crawler where to start crawling.
+It returns an array of strings and/or [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+The seed function can be asynchronous, if you want to fetch URLs from an external source.
+
+```typescript
+async seed() {
+  // const response = await fetch(...);
+  return ["https://news.ycombinator.com"];
+}
+```
+
+For more detail, read the [Seed function](/build/development/seed) chapter.
+
+### Handler
+
+The handler is the meat and potatoes of your crawler.
+Here you write custom logic to do whatever you'd like!
+Below is an example that scrapes data from a hypothetical job posting.
+
+<Note>
+Remember: by the time the handler runs, the request has already been made.
+Use the handler to process the page's DOM rather than fetch new requests.
+</Note>
+
+```typescript
+handler({ $, $$, request }) {
+  // $ is shorthand for document.querySelector()
+  // $$ is shorthand for Array.from(document.querySelectorAll())
+  const jobTitle = $("#job_title")?.innerText;
+  const isRemote =
+    $("#location") &&
+    $("#location").innerText.toLowerCase().includes("remote");
+  const salaryRange = $$('#salary .item')
+    .map(el => parseInt(el.innerText));
+
+  // these keys should match what you've specified in `schema()`
+  const data = {
+    job_title: jobTitle,
+    is_remote: isRemote,
+    salary_range: salaryRange,
+    url: request.url,
+  };
+
+  // find URLs to enqueue to continue the crawl
+  const links = $$("a[href^='http']")
+    .filter(({ href }) => URL.canParse(href))
+    .map(({ href }) => new URL(href).origin);
+
+  return {
+    insert: data,
+    enqueue: links,
+  };
+}
+```
+
+Keep in mind that the query selectors in the example are just that.
+
+For more detail, read the [Handler](/build/development/handler) chapter.
+
+## All together now
+
+Here are all the pieces put together in a single file:
+
+```typescript main.ts
+const crawler: Crawler = {
+  schema({ z }) {
+    return z.object({
+      title: z.string(),
+      description: z.string(),
+    });
+  },
+
+  async seed() {
+    // const response = await fetch(...);
+    return ["https://news.ycombinator.com"];
+  },
+
+  handler({ $, $$, request }) {
+    // $ is shorthand for document.querySelector()
+    // $$ is shorthand for Array.from(document.querySelectorAll())
+    const jobTitle = $("#job_title")?.innerText;
+    const isRemote =
+      $("#location") &&
+      $("#location").innerText.toLowerCase().includes("remote");
+    const salaryRange = $$("#salary .item")
+      .map((el) => parseInt(el.innerText));
+
+    // these keys should match what you've specified in `schema()`
+    const data = {
+      job_title: jobTitle,
+      is_remote: isRemote,
+      salary_range: salaryRange,
+      url: request.url,
+    };
+
+    // find URLs to enqueue to continue the crawl
+    const links = $$("a[href^='http']")
+      .filter(({ href }) => URL.canParse(href))
+      .map(({ href }) => new URL(href).origin);
+
+    return {
+      insert: data,
+      enqueue: links,
+    };
+  },
+};
+
+export default crawler;
+```
+
+At the end of the day, it's just JavaScript, which means that you can import any [dependency](https://www.npmjs.com)
+installed by your favorite package manager to help you write your crawler.
+
+You can also split up your crawler into multiple files if it starts to grow unwieldily &mdash;
+just make sure that the schema, seed function, and handler are exported as a default object
+in the entry file.
+
+## Usage with Git
+
+Use Git to version control your crawler. It's recommended to put all of your crawlers into a single Git repo,
+rather than create a Git repo for each crawler. In other words, you will have a better experience if your
+`.git` directory is a sibling to the `crawlspace.toml` file.

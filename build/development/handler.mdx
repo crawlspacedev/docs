@@ -1,0 +1,140 @@
+---
+title: Handler
+description: Custom logic after every successful response
+icon: code
+---
+
+The handler is the meat and potatoes of your crawler.
+Here you write custom logic to do whatever you'd like!
+Below is an example that scrapes data from a hypothetical job posting.
+
+<Note>
+Remember: by the time the handler runs, the request has already been made.
+Use the handler to process the page's DOM rather than fetch new requests.
+</Note>
+
+## Parameters
+
+### HTML
+
+#### `$`
+
+```ts
+$: (querySelector: string) => HTMLElement | null;
+```
+
+The `$` function is shorthand for `document.querySelector()`,
+and is available when the response `content-type` starts with `text/html`.
+
+#### `$$`
+
+```ts
+$$: (querySelector: string) => Array<Node>;
+```
+
+The `$$` function is short for `Array.from(document.querySelectorAll())`,
+and is available when the response `content-type` starts with `text/html`.
+
+#### `toMarkdown`
+
+```ts
+toMarkdown: (el: string | HTMLElement) => string;
+```
+
+#### `ai`
+
+```ts
+ai: {
+  extract: <T>($el: HTMLElement | string) => Promise<T>;
+  sentiment: ($el: HTMLElement | string) =>
+    Promise<{ score?: number; label?: string }[]>;
+  summarize: ($el: HTMLElement | string) =>
+    Promise<{ summary: string }>;
+  tool: ({
+    name,
+    description,
+    schema,
+  }: {
+    name: string;
+    description: string;
+    schema: any;
+  }) => {
+    name: string;
+    description: string;
+    parameters: {
+      type: string;
+      properties: Record<string, { type: string; description: string }>;
+      required: string[];
+    };
+  };
+};
+```
+
+### JSON
+
+#### `json`
+
+```ts
+json: unknown;
+```
+
+The `json` object is available when the response `content-type` starts with `application/json`.
+Use this object instead of awaiting `response.json()`.
+
+### `request`
+
+```ts
+request: Request;
+```
+
+With `request`, you have access to the properties of the request that had been made.
+
+### `response`
+
+```ts
+response: Response;
+```
+
+With `response`, you have access to the properties of the response.
+Use this object to read things like response headers.
+If you want to parse JSON from the response's body, use [`json`](#json).
+
+
+### `logger`
+
+```ts
+logger: Console;
+```
+
+Console statements get stripped out of the crawler bundle before deploying to Crawlspace.
+To retain console messages, use `logger` as a replacement for `console`.
+
+### `z`
+
+```ts
+z: ZodObject;
+```
+
+Zod global, for convenience.
+
+
+## Returned properties
+
+
+
+### `insert`
+
+```ts
+insert?: any;
+```
+
+### `upsert`
+
+### `onConflict`
+*string*
+
+### `enqueue`
+
+```ts
+enqueue?: Array<string | Request>;
+```

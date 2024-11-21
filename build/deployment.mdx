@@ -1,0 +1,56 @@
+---
+title: Deployment
+description: Push your crawler to the cloud
+icon: rocket
+---
+
+Deploying to Crawlspace is as simple as running `crsp deploy`.
+There are a few things that happen behind the scenes that you should be aware of.
+
+## Immutability
+
+Crawlers deployed to Crawlspace are [atomic](https://jamstack.org/glossary/atomic/) and [immutable](https://jamstack.org/glossary/immutable/).
+This means that any changes to the Crawlspace platform or underlying code will not affect the code of your deployed crawler.
+To pick up new platform changes, simply redeploy your crawler with `crsp deploy`.
+Read the [changelog](/changelog/product-updates) to learn about new features that have been recently released.
+
+## Migrations
+
+If your crawler's schema changes between deploys, Crawlspace performs the associated migrations to your database automatically.
+Read below for more details, and potential repurcussions, of deploying schema changes.
+
+Some operations are *destructive*, meaning that they will result in data loss for the data stored in that column.
+It's recommended that you download a copy of your crawler's dataset before deploying any schema changes.
+
+### Adding a column
+
+If you add a new key to your schema, then a new column gets created in your crawler's table.
+Previously-inserted rows will have a `null` value for the new column.
+Adding a new column is **not destructive**.
+
+### Removing a column
+
+If you delete a key from your schema, then that column and all of its data will be dropped from your crawler's table.
+Removing a column is **destructive**.
+
+### Renaming a column
+
+Renaming a key in your schema effectively drops the column, and then adds a new column with a new name back.
+Renaming a column is **destructive**.
+
+### Changing a column's type
+
+Changing a column's type effectively drops the column, and then adds the column back with the new type.
+As such, changing a column's type is **destructive**.
+
+### Changing a column's constraints
+
+If you add a unique contraint to a column with `.describe('unique')`, then the column will first be dropped
+before it is re-added with the unique constraint. The column must first be dropped because it is possible
+that there already exist duplicate values within the column.
+An index will be created for the column after it is re-added.
+Changing a column's constraints is **destructive**.
+<Warning>
+  Once you define a column as unique, you cannot remove the unique constraint.
+  You will need to deploy a version with the column removed to fully remove the unique constraint.
+</Warning>

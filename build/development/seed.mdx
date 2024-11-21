@@ -1,0 +1,16 @@
+---
+title: Seed function
+description: Instruct the crawler where to start
+icon: seedling
+---
+
+The seed function instructs the crawler where to start crawling.
+It returns an array of strings and/or [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+The seed function can be asynchronous, if you want to fetch URLs from an external source.
+
+```typescript
+async seed() {
+  // const response = await fetch(...);
+  return ["https://news.ycombinator.com"];
+}
+```
