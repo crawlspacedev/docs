@@ -1,0 +1,301 @@
+---
+title: Response handling
+description: Custom logic after every successful response
+icon: code
+---
+
+The response handler is the brains of your web crawler.
+Here you write custom logic to convert HTTP responses to structured data, blobs, or vectors.
+How you scrape is entirely up to you.
+Crawlspace exposes convenience methods to make scraping as easy as possible.
+Each property and method below is available as a parameter of the `onResponse` function.
+
+<Note>
+Remember: by the time the response handler runs, the request has already been made.
+Use it to process the page's DOM rather than fetch new requests.
+</Note>
+
+## Query selectors
+
+For HTML responses, use `$` and `$$` to select specific DOM elements.
+While similar to jQuery or Cheerio, these methods are standard JavaScript that work if you paste them in your browser console.
+
+### `$`
+
+The `$` function is shorthand for `document.querySelector()`,
+and is available when the response `content-type` starts with `text/html`.
+
+```ts
+onResponse({ $ }) {
+  const paragraph = $('#parent .item p'); // HTMLElement | undefined
+  const text = paragraph?.innerText; // text of all children
+  // ...
+}
+```
+
+### `$$`
+
+The `$$` function is short for `Array.from(document.querySelectorAll())`,
+and is available when the response `content-type` starts with `text/html`.
+
+```ts
+onResponse({ $$ }) {
+  const links = $$('a[href]'); // Array<HTMLElement>
+  const hrefs = links.map(link => link.href); // string[]
+  // ...
+}
+```
+
+## Inference
+
+Query selectors help you target specific DOM elements of a _given_ website.
+But when crawling the web at large, you might not know what specific selectors to use.
+
+For general-purpose data extraction that works on _any_ website, run inference with large language models (LLMs).
+LLMs are more resilient to website changes, too &mdash; your code won't need to change when web page code changes.
+Crawlspace exposes three AI convenience methods for text generation: &mdash; [extract](#ai-extract), [summarize](#ai-summarize), and [sentiment](#ai-sentiment).
+
+### `ai.extract`
+
+AI-based data extraction is a powerful and resilient general-purpose tool for reliably converting unstructured data into JSON.
+
+```ts
+async onResponse({ $, ai, z }) {
+  // provide an HTMLElement or a string as the corpus to extract from
+  const corpus = $("main");
+  // you can reuse your crawler's schema, or create a new one
+  const schema = z.object({
+    tiers: z.array(
+      z.object({
+        planName: z.string(),
+        monthlyPrice: z.union([z.number().int(), z.string()]),
+      }),
+    ),
+  });
+  // use Crawlspace's built-in AI workers (no extra API tokens needed)
+  const { tiers } = await ai.extract<z.infer<typeof schema>>(corpus, {
+    model: 'meta/llama-3.1-8b',
+    instruction: 'Find the pricing plan of each tier',
+    schema,
+  });
+  console.log(tiers); // { planName: string, monthlyPrice: number | string }[]
+  // ...
+}
+```
+
+Usage is billed based on number of blended (input + output) tokens used.
+Currently, there are two models available:
+- `meta/llama-3.1-8b`: Small inference
+- `meta/llama-3.3-70b`: XL inference
+
+### `ai.summarize`
+
+Summarize the content of a page or a specific DOM node.
+This method is very fast and inexpensive.
+
+```ts
+async onResponse({ $, ai }) {
+  const { summary } = await ai.summarize($('main'));
+  console.log(summary); // string
+  // ...
+}
+```
+
+Usage is billed based on number of input tokens used.
+Currently, there is one model available:
+- [facebook/bart-large-cnn](https://huggingface.co/facebook/bart-large-cnn): Tiny inference
+
+### `ai.sentiment`
+
+Run sentiment analysis to classify text as either `POSITIVE` or `NEGATIVE`.
+This method is very fast and inexpensive.
+
+```ts
+async onResponse({ $, ai }) {
+  const result = await ai.sentiment($('#user-review-1');
+  const { score, label } = result[0];
+  console.log(label); // either "POSITIVE" or "NEGATIVE"
+  // ...
+}
+```
+
+Usage is billed based on number of input tokens used.
+Currently, there is one model available:
+- [distilbert/sst-2-english](https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english): Tiny inference
+
+## Embeddings
+
+Use embeddings for retrieval-augmented generation (RAG) tasks.
+This is useful for chatting with the data gathered from your crawl.
+Embeddings are stored in your crawler's [vector database](/storage/vector).
+
+### `ai.embed`
+
+Here's how you'd write the end of your crawler's handler to upsert embeddings of markdown for future retrieval:
+
+```ts
+async onResponse({ $, ai, getMarkdown }) {
+  // convert the page into markdown
+  const markdown = getMarkdown();
+  const { embeddings } = await ai.embed(markdown, {
+    // important: should match `vector.dimensions` in crawler's config
+    dimensions: 768
+  });
+  return {
+    // upsert the embeddings along with sqlite row
+    upsert: { row, onConflict: "url", embeddings },
+    // upload the markdown to a bucket for future retrieval
+    attach: { content: markdown },
+  };
+}
+```
+
+The above example uses the SQLite database, vector database, and bucket storage solutions in harmony.
+
+Usage is billed based on number of input tokens used.
+Currently, there are three embedding models available.
+The model gets chosen automatically depending on the number of dimensions you request.
+- 384: `baai/bge-small-en-v1.5`: Small embedding
+- 768: `baai/bge-base-en-v1.5`: Base embedding
+- 1024: `baai/bge-large-en-v1.5`: Large embedding
+
+## Enqueueing
+
+Add requests to your crawler's queue with the `enqueue` method.
+This synchronous function appends requests to the queue.
+You can call `enqueue()` multiple times in your response handler.
+Requests are automatically normalized and deduplicated based on URL.
+
+You can pass in URLs (strings), request objects, or HTMLElements.
+
+### `enqueue`
+
+```ts
+onResponse({ $, enqueue }) {
+  // enqueue all links on the page
+  const links = $$('a[href]');
+  enqueue(links);
+  // enqueue the root page (`/`) of every link on the page
+  const rootPages = links.map(link => new URL(link).origin);
+  enqueue(rootPages);
+  // ...
+}
+```
+
+## Response data
+
+Access the raw response.
+
+### `response`
+
+Use the response object to read things like response headers.
+
+<Warning>
+  The response body is already consumed for text-based responses, so do not use `response.text()` or `response.json()`.
+  Use the `html`, `json`, and `xml` properties instead.
+</Warning>
+
+```ts
+onResponse({ response }) {
+  const contentType = response.headers.get('content-type');
+  // ...
+}
+```
+
+### `html`
+
+```ts
+onResponse({ html }) {
+  if (html) {
+    console.log(html); // string
+  }
+  // ...
+}
+```
+
+The raw `html` string is available when the response `content-type` starts with `text/html`.
+
+### `json`
+
+```ts
+onResponse({ json }) {
+  if (json) {
+    console.log(json); // unknown
+  }
+  // ...
+}
+```
+
+The `json` object is available when the response `content-type` starts with `application/json`.
+Use this object instead of awaiting `response.json()`.
+
+
+### `xml`
+
+```ts
+onResponse({ xml }) {
+  if (xml) {
+    console.log(xml); // unknown
+  }
+  // ...
+}
+```
+
+The `xml` object is available when the response `content-type` starts with `application/xml`.
+Use this object instead of awaiting `response.text()`.
+
+## Other helpers
+
+### `getMarkdown`
+
+Converting a page or DOM node into markdown is helpful when working with LLMs.
+It also reduces the token count by stripping out unnecessary markup.
+
+```ts
+onResponse({ $, getMarkdown }) {
+  // pass no arguments to get the entire page markdown
+  const pageMarkdown = getMarkdown();
+  // pass in a single element to get its contents
+  const firstParagraph = $('article > p');
+  const nodeMarkdown = getMarkdown(firstParagraph);
+  // or pass in a string to convert
+  const stringMarkdown = getMarkdown(firstParagraph?.innerHTML);
+  // ...
+}
+```
+
+### `env`
+
+Environment variables that you put in your crawler's `.env` file are available inside the `env` object.
+Env vars must begin with `SECRET_` to be included in your crawler's deployment.
+All env vars are considered secret and are not stored on Crawlspace's servers.
+
+```ts
+onResponse({ env }) {
+  console.log(env.SECRET_API_KEY); // value in your crawler's .env file
+  // ...
+}
+```
+
+### `request`
+
+With `request`, you have access to the properties of the request that had been made.
+
+```ts
+onResponse({ request }) {
+  const method = request.method;
+  console.log(method); // string
+  // ...
+}
+```
+
+### `z`
+
+Zod global, for convenience.
+Use this to access Zod types when defining a schema.
+
+```ts
+onResponse({ z }) {
+  // ...
+}
+```

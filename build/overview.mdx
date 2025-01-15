@@ -4,22 +4,60 @@ description: Anatomy of a web crawler
 icon: globe
 ---
 
-## Fundamentals
-
 As a developer, you only need to focus on three things when building a web crawler on Crawlspace:
 
-- A *schema*
-- A *seed function*, and
-- A *handler*
+- An *initializer*,
+- A *schema*, and
+- A *response handler*
 
 These three pieces are exported as a JavaScript object and merged with platform code
 before getting deployed as a serverless function.
 
-### Schema
+## Initializer
 
-The schema of a crawler on Crawlspace is defined as a [Zod](https://www.npmjs.com/package/zod) object.
-It's responsible for setting column types and constraints for your crawler's sqlite table.
-Return a Zod object in the `schema()` function to define your schema. Here's an example:
+The initializer instructs the crawler where to start crawling.
+Each crawl run starts from an empty queue, so the initializer provides the first set of URLs for the run.
+It returns an array of URLs.
+
+```typescript
+init() {
+  return [
+    "https://news.ycombinator.com",
+    "https://news.ycombinator.com/newest"
+  ];
+}
+```
+
+It can also return an array of request objects.
+This is useful if you need to change the default request method or add request headers.
+
+```typescript
+init({ env }) {
+  const { SECRET_GITHUB_TOKEN } = env;
+  return [
+    {
+      url: "https://api.github.com/...",
+      method: "GET",
+      headers: { Authorization: `Bearer ${SECRET_GITHUB_TOKEN}` }
+    }
+  ];
+}
+```
+
+The initializer can be asynchronous, if you want to fetch URLs from an external source.
+
+```typescript
+async init() {
+  const response = await fetch('...');
+  const json = await response.json<{ urls: string[] }>();
+  return json.urls;
+}
+```
+
+## Schema
+
+The schema of a crawler on Crawlspace is responsible for setting column types and constraints for your crawler's SQLite table.
+Return a [Zod](https://www.npmjs.com/package/zod) object in the `schema()` function to define your schema. Here's an example:
 
 ```typescript
 schema({ z }) {
@@ -27,33 +65,19 @@ schema({ z }) {
     job_title: z.string(),
     is_remote: z.boolean(),
     salary_range: z.array(z.number()),
-    url: z.string().describe('unique'),
   });
 }
 ```
 
-For more detail, read the [Schema](/build/development/schema) chapter.
+See [Types](/build/storage#types) to learn the mapping between Zod types and their corresponding column types.
 
-### Seed function
+Every column is nullable. This helps with [migrations](/build/deployment#migrations) between deploys.
 
-The seed function instructs the crawler where to start crawling.
-It returns an array of strings and/or [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
-The seed function can be asynchronous, if you want to fetch URLs from an external source.
+## Response handler
 
-```typescript
-async seed() {
-  // const response = await fetch(...);
-  return ["https://news.ycombinator.com"];
-}
-```
-
-For more detail, read the [Seed function](/build/development/seed) chapter.
-
-### Handler
-
-The handler is the meat and potatoes of your crawler.
+The response handler is the meat and potatoes of your crawler.
 Here you write custom logic to do whatever you'd like!
-Below is an example that scrapes data from a hypothetical job posting.
+Below is an example that scrapes data and inserts it into SQLite.
 
 <Note>
 Remember: by the time the handler runs, the request has already been made.
@@ -61,100 +85,33 @@ Use the handler to process the page's DOM rather than fetch new requests.
 </Note>
 
 ```typescript
-handler({ $, $$, request }) {
+onResponse({ $, $$, enqueue }) {
   // $ is shorthand for document.querySelector()
   // $$ is shorthand for Array.from(document.querySelectorAll())
-  const jobTitle = $("#job_title")?.innerText;
-  const isRemote =
-    $("#location") &&
-    $("#location").innerText.toLowerCase().includes("remote");
-  const salaryRange = $$('#salary .item')
-    .map(el => parseInt(el.innerText));
-
+  const title = $('head > title')?.innerText;
+  const description = $('meta[name="description"]')?.getAttribute('content');
   // these keys should match what you've specified in `schema()`
-  const data = {
-    job_title: jobTitle,
-    is_remote: isRemote,
-    salary_range: salaryRange,
-    url: request.url,
-  };
+  const row = { title, description };
 
   // find URLs to enqueue to continue the crawl
-  const links = $$("a[href^='http']")
-    .filter(({ href }) => URL.canParse(href))
-    .map(({ href }) => new URL(href).origin);
+  enqueue($$("a[href]"));
 
   return {
-    insert: data,
-    enqueue: links,
+    insert: { row },
   };
 }
-```
-
-Keep in mind that the query selectors in the example are just that.
-
-For more detail, read the [Handler](/build/development/handler) chapter.
-
-## All together now
-
-Here are all the pieces put together in a single file:
-
-```typescript main.ts
-const crawler: Crawler = {
-  schema({ z }) {
-    return z.object({
-      title: z.string(),
-      description: z.string(),
-    });
-  },
-
-  async seed() {
-    // const response = await fetch(...);
-    return ["https://news.ycombinator.com"];
-  },
-
-  handler({ $, $$, request }) {
-    // $ is shorthand for document.querySelector()
-    // $$ is shorthand for Array.from(document.querySelectorAll())
-    const jobTitle = $("#job_title")?.innerText;
-    const isRemote =
-      $("#location") &&
-      $("#location").innerText.toLowerCase().includes("remote");
-    const salaryRange = $$("#salary .item")
-      .map((el) => parseInt(el.innerText));
-
-    // these keys should match what you've specified in `schema()`
-    const data = {
-      job_title: jobTitle,
-      is_remote: isRemote,
-      salary_range: salaryRange,
-      url: request.url,
-    };
-
-    // find URLs to enqueue to continue the crawl
-    const links = $$("a[href^='http']")
-      .filter(({ href }) => URL.canParse(href))
-      .map(({ href }) => new URL(href).origin);
-
-    return {
-      insert: data,
-      enqueue: links,
-    };
-  },
-};
-
-export default crawler;
 ```
 
 At the end of the day, it's just JavaScript, which means that you can import any [dependency](https://www.npmjs.com)
 installed by your favorite package manager to help you write your crawler.
 
-You can also split up your crawler into multiple files if it starts to grow unwieldily &mdash;
-just make sure that the schema, seed function, and handler are exported as a default object
-in the entry file.
 
 ## Usage with Git
 
 Use Git to version control your crawler. It's recommended to put all of your crawlers into a single Git repo,
 rather than create a Git repo for each crawler. In other words, you will have a better experience if your
 `.git` directory is a sibling to the `crawlspace.toml` file.
+
+You can also split up your crawler into multiple files if it starts to grow unwieldily &mdash;
+just make sure that the initializer, schema, and response handler are exported as the default object
+of the entry file.

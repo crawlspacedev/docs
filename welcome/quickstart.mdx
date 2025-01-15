@@ -6,7 +6,7 @@ icon: stopwatch
 
 This quickstart assumes that you already have a Crawlspace account.
 
-[Sign up](https://crawlspace.dev/) if you haven't already &mdash; it's free!
+[Sign up](https://crawlspace.dev/) if you haven't already &mdash; it's free to create a new account.
 
 <Steps titleSize="h2">
   <Step title="Install the CLI">
@@ -32,18 +32,30 @@ This quickstart assumes that you already have a Crawlspace account.
   </Step>
   <Step title="Create a new crawler">
 
-    The `crsp new` command generates a template inside the
-    directory of your choosing. Edit the generated files to customize your
-    crawler's behavior.
+    The `crsp new` command generates a template inside the directory of your choosing.
+    Edit the generated files to customize your crawler's behavior.
+    Read [Build a web crawler](/build/overview) to learn the basic syntax.
 
     ```bash
     crsp new
     ```
 
   </Step>
+  <Step title="Test your crawler">
+
+   Test out your crawler locally with the `crsp dev` command.
+   This emulates your crawler's behavior locally.
+   Certain features like JavaScript rendering are unavailable in this mode.
+   Keep in mind that the speed will be much slower compared to running in production.
+
+    ```bash
+    crsp dev
+    ```
+
+  </Step>
   <Step title="Deploy your crawler">
 
-    That's it!
+    That's it! Note that you must have an active subscription before your crawler can start.
 
     ```bash
     crsp deploy

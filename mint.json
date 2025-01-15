@@ -36,19 +36,19 @@
   },
   "topbarLinks": [
     {
-      "name": "Sign up",
+      "name": "Home",
       "url": "https://crawlspace.dev"
     }
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://crawlspace.dev/app"
+    "url": "https://crawlspace.dev/welcome"
   },
   "anchors": [
     {
       "name": "Community",
       "icon": "discord",
-      "url": "https://crawlspace.dev/community"
+      "url": "https://discord.crawlspace.dev"
     },
     {
       "name": "Support",
@@ -61,44 +61,24 @@
   },
   "tabs": [
     {
-      "name": "CLI reference",
-      "url": "command-line"
-    },
-    {
       "name": "Changelog",
       "url": "changelog"
     }
   ],
-
   "navigation": [
     {
       "group": "Welcome",
-      "pages": [
-        "welcome/introduction",
-        "welcome/quickstart",
-        "welcome/features"
-      ]
+      "pages": ["welcome/introduction", "welcome/quickstart"]
     },
     {
       "group": "Build a web crawler",
       "pages": [
         "build/overview",
-        {
-          "group": "Development",
-          "icon": "desktop",
-          "pages": [
-            "build/development/schema",
-            "build/development/seed",
-            "build/development/handler"
-          ]
-        },
+        "build/responses",
+        "build/storage",
         "build/configuration",
         "build/deployment"
       ]
-    },
-    {
-      "group": "Platform",
-      "pages": ["platform/billing", "platform/limitations"]
     },
     {
       "group": "Changelog",
@@ -108,6 +88,6 @@
   "footerSocials": {
     "x": "https://x.com/crawlspacedev",
     "github": "https://github.com/crawlspacedev",
-    "linkedin": "https://linkedin.com/company/crawlspacedev"
+    "discord": "https://discord.crawlspace.dev"
   }
 }

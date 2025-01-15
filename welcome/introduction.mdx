@@ -1,20 +1,19 @@
 ---
 title: Introduction
-description: Welcome to our serverless web crawling platform
+description: "Crawlspace - The centralized web crawling platform"
 icon: house
 ---
 
 With Crawlspace, you can:
 
-- Affordably crawl tens of millions of web pages per month
-- Respectfully adhere to rate-limiting and robots.txt
-- Intelligently scrape with query selectors and/or AI inference
-- Conveniently save data into an SQLite database and/or S3-compat bucket
-- Efficiently query scraped data over a REST API
+- Affordably crawl **tens of millions** of web pages per month
+- Scrape web pages with **LLM extraction** or query selectors
+- Store data in **SQLite**, a **vector database**, and/or **S3-compatible bucket**
+- Respectfully adhere to rate-limiting and robots.txt out of the box
 
 ## Get up to speed
 
-Set up your local environment, and learn about out-of-the-box features.
+Set up your local environment, and learn about web crawling philosophies.
 
 <CardGroup cols={2}>
   <Card
@@ -24,40 +23,33 @@ Set up your local environment, and learn about out-of-the-box features.
   >
     Deploy your first web crawler to Crawlspace in under 5 minutes
   </Card>
-  <Card
-    title="Features"
-    icon="wand-magic-sparkles"
-    href="/welcome/features"
-  >
-  Learn about platform features and web crawling philosophies
-  </Card>
 </CardGroup>
 
 ## Build a web crawler
 
-You can deploy an unlimited amount of web crawlers to Crawlspace.
+Deploy web crawlers as easily as you deploy websites.
 
 <CardGroup cols={2}>
   <Card
-    title="Define your schema"
-    icon="database"
-    href="/build/development/schema"
+    title="Overview"
+    icon="globe"
+    href="/build/overview"
   >
-    The database schema holds the structure of the data you scrape
+    Learn the fundamentals of building a web crawler on Crawlspace
   </Card>
   <Card
-    title="Create your seed function"
-    icon="seedling"
-    href="/build/development/seed"
-  >
-    The seed function instructs the crawler where to start crawling
-  </Card>
-  <Card
-    title="Customize your handler"
+    title="Handle responses"
     icon="code"
-    href="/build/development/handler"
+    href="/build/responses"
   >
-    The handler runs after every successful response
+    Use LLMs and query selectors to parse page responses
+  </Card>
+  <Card
+    title="Store data"
+    icon="database"
+    href="/build/storage"
+  >
+    Save data in a SQLite database, a vector database, or a bucket
   </Card>
   <Card
     title="Configure your options"
@@ -65,26 +57,5 @@ You can deploy an unlimited amount of web crawlers to Crawlspace.
     href="/build/configuration"
   >
     Tweak your crawler with configuration settings
-  </Card>
-</CardGroup>
-
-## Understand the platform
-
-Push your crawlers to the limit while monitoring your usage.
-
-<CardGroup cols={2}>
-  <Card
-    title="Billing"
-    icon="file-invoice-dollar"
-    href="/platform/billing"
-  >
-    Pay-as-you-go with metered billing
-  </Card>
-  <Card
-    title="Limitations"
-    icon="traffic-light"
-    href="/platform/limitations"
-  >
-    Take it to the limit
   </Card>
 </CardGroup>

@@ -1,16 +1,196 @@
 ---
 title: Configuration options
-description: Display inline code and code blocks
+description: Adjust the settings of your crawler
 icon: gear
 ---
 
 Crawler configuration options are saved in a `crawler.toml` file alongside your code.
 
 
-## `name`
+### `name`
 
-## `entry`
+_string_ · Required
 
-## `schedule`
+The name of your crawler. Keep as unique for your user.
 
-## `maxPagesPerCrawl`
+### `entry`
+
+_string_ · Required
+
+The relative path to the entrypoint of your crawler.
+
+### `schedule`
+
+_string_ · Default: @manual
+
+How often your crawler runs.
+Accepts [valid crontab syntax](https://cron-ai.vercel.app) and shorthand expressions.
+Crawlers can run at most once per minute.
+
+Crontab syntax examples:
+- `*/10 * * * *` -> every 10 minutes
+- `45 23 * * *` -> every day at 11:45pm UTC
+- `30 12 * * 2` -> every Tuesday at 12:30pm UTC
+- `59 1 14 3 *` -> every March 14 at 1:59am UTC
+
+Valid shorthand examples:
+- `@manual` -> only start a crawl by manually clicking a button
+- `@hourly` -> every hour at the beginning of the hour (`0 * * * *`)
+- `@daily` -> every day at midnight (`0 0 * * *`)
+- `@weekly` -> every week at midnight on Sunday (`0 0 * * 0`)
+- `@monthly` -> every month at 12am on the 1st of the month (`0 0 1 * *`)
+
+## crawl
+
+Per-crawl and link traversal settings:
+
+### `crawl.maxRequests`
+
+_number_ · Required · Range: 1 - 10000000
+
+The maximum number of pages to request per crawler run, not including retries.
+Set this value to enforce the maximum number of requests your crawler can make per crawl.
+A crawl ends when either `maxMinutes` or `maxRequests` is reached, whichever happens first.
+
+### `crawl.maxRequestsPerOrigin`
+
+_number_ · Optional · Range: 1 - 10000000
+
+The maximum number of requests per origin per crawler run.
+You can set this value to limit the amount of requests per website without needing to keep track on your own.
+
+### `crawl.maxMinutes`
+
+_number_ · Optional · Range: 1 - 43199
+
+The maximum duration of each crawl in minutes.
+If the crawler runs on a schedule, then this value should be at least one minute less than the scheduled interval.
+A crawl ends when either `maxMinutes` or `maxRequests` is reached, whichever happens first.
+
+### `crawl.matchDomains`
+
+_string[]_ · Optional
+
+Glob patterns matching a URL's hostname. Wildcards (`*`) match between dot (`.`) characters.
+Provide values to allow or deny adding certain URLs to the queue.
+
+Domain glob examples:
+
+- `example.com` -> only crawl URLs whose hostname equals example.com
+- `*.example.com` -> only crawl single-level subdomains of example.com
+- `**.example.com` -> only crawl multi-level subdomains of example.com
+- `**.io`           -> only crawl .io domains
+- `!**.tk`          -> do not crawl .tk domains
+
+Crawlspace already avoids certain domains, so there is no need to include any of the following yourself:
+
+- `!**.gov`
+- `!**.onion`
+
+### `crawl.matchPaths`
+
+_string[]_ · Optional
+
+Glob patterns matching a URL's pathname. Wildcards (`*`) match between slash (`/`) characters.
+Provide values to allow or deny adding certain URLs to the queue.
+
+Path glob examples:
+
+- `/jobs`  -> only crawl URLs whose pathname equals /jobs
+- `/jobs/*`  -> only crawl URLs one level under the /jobs directory
+- `/jobs/**`  -> only crawl URLs whose pathname starts with /jobs/
+- `**/*.html`  -> only crawl URLs that have a .html file extension
+- `!**/*.gif`  -> do not crawl URLs that have a .gif file extension
+
+Crawlspace already avoids certain paths, so there is no need to include any of the following yourself:
+
+- `!**/*.avif`
+- `!**/*.bak`
+- `!**/*.dmg`
+- `!**/*.exe`
+- `!**/*.gz`
+- `!**/*.m4a`
+- `!**/*.mov`
+- `!**/*.mp3`
+- `!**/*.mp4`
+- `!**/*.ogg`
+- `!**/*.pdf`
+- `!**/*.psd`
+- `!**/*.rar`
+- `!**/*.rpm`
+- `!**/*.wasm`
+- `!**/*.wav`
+- `!**/*.webm`
+- `!**/*.xsd`
+- `!**/*.zip`
+
+### `crawl.ignoreQueryParams`
+
+_boolean_ · Default: false
+
+Whether or not to remove query parameters from URLs before adding to the queue.
+
+## queue
+
+Queue consumer settings:
+
+### `queue.batchSize`
+
+_number_ · Default: plan maximum · Range: 1 - 25
+
+The maximum number of requests that a worker will attempt to fetch in parallel.
+Keep in mind that [worker instances](/platform/limits#worker-instance) set a limit of 6 simultaneous open connections at a time.
+
+### `queue.maxConcurrency`
+
+_number_  · Default: plan maximum · Range: 1 - 250
+
+The maximum amount of concurrent workers assigned to alleviate queue pressure.
+It can be useful to set this value to avoid an origin's rate limits.
+Otherwise, it's recommended to keep this value as `auto`.
+
+### `queue.maxRetries`
+
+_number_  · Default: 3 · Range: 0 - 20
+
+The maximum number of times that an unsucessful request will be retried.
+Retries will be re-added to the queue with a delay in accordance to the response's `Retry-After` header; if absent, with exponential backoff.
+
+## vector
+
+Vector database settings:
+
+### `vector.enabled`
+
+_boolean_ · Default: false
+
+Change to `true` to opt in to using a [vector database](/build/storage#vector-database) with your crawler.
+A vector database gets created the first time your crawler is deployed while this value is true.
+You must set this value as `true` if your handler returns embeddings.
+
+### `vector.dimensions`
+
+_number_ · Default: 768 · Range: 1 - 1536
+
+The number of dimensions in each embedding.
+Embeddings generated must have this number of dimensions in order to be stored correctly.
+This value cannot be changed after the vector database has been created.
+
+### `vector.metric`
+
+_"cosine" | "euclidean" | "dot-product"_  · Default: cosine
+
+The distance metric used to calculate similar vectors at query-time.
+This value cannot be changed after the vector database has been created.
+
+## bucket
+
+S3-compatible bucket settings:
+
+### `bucket.enabled`
+
+_boolean_  · Default: false
+
+Change to `true` to opt in to using a [bucket](/build/storage#bucket) with your crawler.
+A bucket gets created the first time your crawler is deployed while this value is true.
+You must set this value as `true` if your handler returns the `attach` property.

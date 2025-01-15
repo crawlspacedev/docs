@@ -1,0 +1,237 @@
+---
+title: Databases and storage
+description: Save data in SQLite tables, vector databases, and buckets
+icon: database
+---
+
+## SQLite database
+
+Every crawler gets its own table in its own SQLite database.
+The structure of the table is defined by the [schema](/build/overview#schema) in your code.
+
+Return either `insert` or `upsert` in your response handler to write a row to your crawler's SQLite database.
+The `row` object must conform to your schema to be written successfully.
+
+### Inserting
+
+```ts
+schema({ z }) {
+  return z.object({
+    title: z.string(),
+    description: z.string(),
+  });
+},
+onResponse({ $ }) {
+  const title = $('head > title')?.innerText;
+  const description = $('meta[name="description"]')?.getAttribute('content');
+  const row = { title, description };
+  return {
+    insert: { row }
+  }
+}
+```
+
+### Upserting
+
+```ts
+schema({ z }) {
+  return z.object({
+    url: z.string().describe("unique"), // describe as unique per onConflict
+    title: z.string(),
+    description: z.string(),
+  });
+},
+onResponse({ $ }) {
+  const title = $('head > title')?.innerText;
+  const description = $('meta[name="description"]')?.getAttribute('content');
+  const row = { title, description };
+  return {
+    upsert: {
+      row,
+      onConflict: "url", // this references a unique column in your schema
+    }
+  }
+}
+```
+
+### Types
+
+The type of Zod object corresponds to the table's column type.
+
+**String**
+
+```ts
+z.string() // TEXT, like "Hello, world!"
+```
+
+**Enum**
+
+```ts
+z.enum(["apple", "banana", "cucumber"]) // TEXT, like "banana"
+```
+
+**Number**
+
+```ts
+z.number() // REAL, like 3.14
+```
+
+If you know your value will always be an integer, you can be more specific:
+
+```ts
+z.number().int() // INTEGER, like 17
+```
+
+**Boolean**
+
+SQLite doesn't support boolean types, so instead values get saved as either a `0` or a `1`.
+
+```ts
+z.boolean() // INTEGER CHECK (column IN (0, 1)), like 1
+```
+
+**Date**
+
+Return a JavaScript `Date` object and the date will get saved in an SQLite-compatible format.
+
+```ts
+z.date() // DATETIME, like 2024-11-20 00:42:29
+```
+
+**Object**
+
+Unstructured objects can be saved as pure strings.
+You'll be responsible for stringifying the object before inserting the row, and parsing the object after reading the row.
+
+```ts
+z.object() // TEXT, like "{\"foo\": \"bar\"}"
+```
+
+If your object is guaranteed to have a consistent shape,
+it's recommended to flatten it so that each property gets its own column instead.
+
+**Array**
+
+Like objects, arrays get saved as strings under the hood.
+You'll need to `JSON.stringify()` before writing, and `JSON.parse()` after reading.
+Pass in another Zod object as its parameter to specify the types of items inside the array.
+
+```ts
+z.array(z.number().int()) // TEXT, like "[1, 2, 3, 4]"
+```
+
+### Constraints
+
+All columns are *nullable*, meaning they accept null values.
+You cannot make a column require values (i.e. set a `NOT NULL` constraint).
+Crawlspace enforces nullable columns to simplify migrations between deployments.
+
+**Unique**
+
+If you'd like a column to have unique values, then append `.decribe('unique')` to your Zod object.
+This is useful when upserting data to your table.
+If you attempt to insert (not upsert) a duplicate value to a unique column, then the insertion will fail.
+
+```ts
+z.string().describe('unique') // unique values for each row
+```
+
+### Predefined columns
+
+Each crawler's table already has a few predefined columns.
+The Crawlspace platform maintains the values for these columns,
+so you don't need to return them in your schema nor handler.
+
+- `id` The auto-incrementing primary key.
+- `trace_id`: A hexadecimal value used to trace the datum's request.
+- `atch_key`: A path of an optional object stored in a bucket.
+- `url`: The URL of the request.
+- `created_at`: When the row was created.
+- `updated_at`: When the row was updated. Only relevant for upserts.
+
+## Vector database
+
+Use your crawler's vector database to store embeddings.
+Opt-in to a vector database by setting `vector.enabled` to `true` in your crawler's [config](/build/configuration#vector-enabled).
+
+### Inserting
+
+To insert an embedding into your vector database, simply include the `insert.embeddings` property.
+You can use the built-in `ai.embed` convenience method for generating the embeddings themselves,
+or you can generate them with a third-party provider like OpenAI.
+
+```ts
+async onResponse({ $, ai, getMarkdown }) {
+  // ...
+  const markdown = getMarkdown();
+  const { embeddings } = await ai.embed(markdown, {
+    dimensions: 768 // must match config's `vector.dimensions` property
+  });
+  return {
+    insert: { row, embeddings }
+  }
+}
+```
+
+### Upserting
+
+Similarly, upserting embeddings follows the same pattern:
+
+```ts
+async onResponse({ $, ai, getMarkdown }) {
+  // ...
+  const markdown = getMarkdown();
+  const { embeddings } = await ai.embed(markdown, {
+    dimensions: 768 // must match config's `vector.dimensions` property
+  });
+  return {
+    upsert: { row, onConflict: "url", embeddings }
+  }
+}
+```
+
+## Bucket
+
+Use your crawler's vector database to store blobs like long-form text or media.
+Opt-in to a bucket by setting `bucket.enabled` to `true` in your crawler's [config](/build/configuration#bucket-enabled).
+
+### Uploading
+
+Return the `attach` property in your response handler to put an object in your crawler's bucket.
+
+```ts
+onResponse({ $, getMarkdown }) {
+  // ...
+  const markdown = getMarkdown();
+  return {
+    insert: { row },
+    attach: { content: markdown }
+  }
+}
+```
+
+By default, the object's key is based on the response's URL.
+The key gets saved as a value in the `atch_key` column in SQLite.
+You can change the key, as well as include arbitrary metadata, to the object.
+
+```ts
+onResponse({ $, response }) {
+  // ...
+  const contentType = response.headers.get("content-type");
+  if (contentType.startsWith("image/")) {
+    const contentLength = response.headers.get("content-length");
+    const blob = await response.blob();
+    return {
+      insert: { row },
+      attach: {
+        key: "unique-key-goes-here"",
+        content: blob,
+        metadata: {
+          size: contentLength,
+        }
+      }
+    }
+  }
+
+}
+```
