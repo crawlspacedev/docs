@@ -81,8 +81,8 @@
       ]
     },
     {
-      "group": "Changelog",
-      "pages": ["changelog/product-updates"]
+      "group": "Learn by example",
+      "pages": ["learn/examples"]
     }
   ],
   "footerSocials": {

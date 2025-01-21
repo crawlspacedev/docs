@@ -1,0 +1,206 @@
+---
+title: Sample code
+description: Spark inspiration for your next web crawling project
+icon: graduation-cap
+---
+
+What can you build with a web crawler?
+Read the following examples to get an idea of the types of data you can collect on Crawlspace.
+Copy/paste these examples into your crawler's `main.ts` file to try them out for yourself.
+Don't forget to adjust your crawler's [configuration settings](/build/configuration).
+
+### Find prospective customers
+
+In this example, we find companies on Vercel who use Google Tag Manager.
+
+```ts
+export default {
+  init() {
+    return ["https://news.ycombinator.com"];
+  },
+  schema({ z }) {
+    // columns are defined as Zod types
+    return z.object({
+      title: z.string(),
+      description: z.string(),
+      is_vercel: z.boolean(),
+      has_gtm: z.boolean(),
+      // describing a field as unique allows \`onConflict\` to upsert
+      url: z.string().describe("unique"),
+    });
+  },
+  onResponse({ $, $$, enqueue, response }) {
+    const isVercel = response.headers.get('server') === 'Vercel';
+    const domain = "googletagmanager.com";
+    const usesGTM = !!$(\`link[href*="\${domain}"],iframe[src*="\${domain}"]\`);
+    // get the URL of every link on the page to continue traversal
+    enqueue($$("a[href]"));
+    // upsert into sqlite db if both conditions are true
+    if (isVercel && usesGTM) {
+      const title = $("head > title")?.innerText;
+      const description = $("meta[name='description']")?.getAttribute("content");
+      const row = { title, description, is_vercel: isVercel, has_gtm: usesGTM };
+      return {
+        upsert: { row, onConflict: "url" }
+      };
+    }
+  }
+} as Crawler;
+```
+
+### RAG your docs
+
+You can crawl your own documentation websites to chat with your docs using retrieval-augmented generation (RAG).
+Scrape content on a scheduled interval and store embeddings of each page's markdown.
+
+```ts
+export default {
+  init() {
+    return ["https://docs.example.com"];
+  },
+  schema({ z }) {
+    return z.object({
+      title: z.string(),
+      description: z.string(),
+      // describing a field as unique allows \`onConflict\` to upsert
+      url: z.string().describe("unique"),
+    });
+  },
+  async onResponse({ $, $$, enqueue, ai, getMarkdown }) {
+    // scrape page details with query selectors
+    const row = {
+      title: $("head > title")?.innerText,
+      description: $("meta[name='description']")?.getAttribute("content"),
+    };
+    // convenience methods to generate, chunk, and embed markdown
+    const markdown = getMarkdown($("body"));
+    const { embeddings } = await ai.embed(markdown, { dimensions: 768 });
+    // get the URL of every link on the page to continue traversal
+    enqueue($$("a[href]"));
+    return {
+      upsert: { row, onConflict: "url", embeddings },
+      attach: { content: markdown },
+    };
+  }
+} as Crawler;
+```
+
+### Conduct market research
+
+In this example, we extract pricing data from all SaaS marketing sites that we can find.
+
+```ts
+export default {
+  init() {
+    // start the crawl on Hacker News
+    return ["https://news.ycombinator.com"];
+  },
+  schema({ z }) {
+    return z.object({
+      tiers: z.array(
+        z.object({
+          planName: z.string(),
+          monthlyPrice: z.union([z.number().int(), z.string()]),
+        }),
+      ),
+    });
+  },
+  async onResponse({ $, $$, ai, enqueue, response, z }) {
+    // enqueue the homepage of each link on the current page
+    const rootPages = $$("a[href]").map((a) => new URL(a.href).origin);
+    enqueue(rootPages);
+    // conditionally run inference
+    const isPricingPage = response.url.endsWith("/pricing");
+    if (isPricingPage) {
+      const row = await ai.extract($("body"), {
+        model: "meta/llama-3.3-70b",
+        instruction: "Find the pricing plan of each tier",
+        schema: setup.schema({ x }),
+      });
+      return {
+        upsert: { row, onConflict: "url" },
+      };
+    }
+  }
+} as Crawler;
+```
+
+
+### Monitor community growth
+
+Track Discord server popularity as a leading indicator of virality.
+
+```ts
+export default {
+  init() {
+    // start the crawl on Hacker News
+    return ["https://news.ycombinator.com"];
+  },
+  schema({ z }) {
+    return z.object({
+      server_name: z.string(),
+      num_members: z.number().int(),
+      // \`url\` and \`created_at\` are automatically provided
+    });
+  },
+  async onResponse({ $, $$, enqueue, ai, response, z }) {
+    // enqueue the home page of each link, and any discord invite links
+    const allUrls = $$("a[href]").map((a) => new URL(a.href).origin);
+    const discordUrls = $$("a[href*='discord.com/invite/']");
+    enqueue([...discordUrls, ...allUrls]);
+    // if the current page is the "join discord community" page
+    if (response.url.startsWith('https://discord.com/invite/')) {
+      // extract data that conforms to your schema (or any Zod object)
+      const schema = setup.schema({ z });
+      const row = await ai.extract<z.infer<typeof schema>>($("html"), {
+        model: "meta/llama-3.1-8b",
+        instruction: "Find the server name and number of members",
+        schema,
+      });
+      return {
+        insert: { row },
+      };
+    }
+  }
+} as Crawler;
+```
+
+### Start a database of images
+
+Build your own image search engine, using custom logic that you define.
+
+```ts
+export default {
+  init() {
+    // return an array of URLs to start the crawl
+    return ["https://news.ycombinator.com"];
+  },
+  schema({ z }) {
+    // columns are defined as Zod types
+    return z.object({
+      content_type: z.string(),
+      alt_text: z.string(),
+      // describing a field as unique allows \`onConflict\` to upsert
+      url: z.string().describe("unique"),
+    });
+  },
+  async onResponse({ $, $$, enqueue, metadata, response }) {
+    const images = $$('img[alt][src]').map(image => ({
+      url: image.src,
+      // include arbitrary metadata alongside the enqueued request...
+      metadata: { alt_text: image.getAttribute('alt') },
+    }));
+    const links = $$('a');
+    enqueue([...images, ...links]);
+    const contentType = response.headers.get('content-type');
+    if (contentType?.startsWith('image/')) {
+      // ...to access later in the response
+      const row = { content_type: contentType, ...metadata };
+      return {
+        upsert: { row, onConflict: "url" },
+        attach: { content: (await response.blob()), metadata },
+      };
+    }
+  }
+} as Crawler;
+```
